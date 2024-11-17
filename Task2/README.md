@@ -1,6 +1,3 @@
-
-Homework-/Task2 : 
-
 Package Requirment:
 
 pip install numpy
