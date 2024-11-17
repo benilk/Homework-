@@ -1,10 +1,13 @@
+
+Homework-/Task2 : 
+
 Package Requirment:
 
-```pip install numpy```
+pip install numpy
 
-```pip install tqdm```
+pip install tqdm
 
-```pip install pandas```
+pip install pandas
 
-```pip install sklearn```
+pip install sklearn
 
