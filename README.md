@@ -1,4 +1,10 @@
-# Internet of Things (Iot) Course Tasks
+Package Requirment:
 
+```pip install numpy```
 
-[Task 1 - TCP Chat](Task1)
+```pip install tqdm```
+
+```pip install pandas```
+
+```pip install sklearn```
+
