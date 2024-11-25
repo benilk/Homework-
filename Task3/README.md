@@ -1,5 +1,4 @@
-# task3
-Requirments:
+# task3 : (Requirments)
 
 Python version +3.9
 
