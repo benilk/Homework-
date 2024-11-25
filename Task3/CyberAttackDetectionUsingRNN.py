@@ -1,78 +1,69 @@
-# Install Kaggle and import libraries
-pip install kaggle
-import os
-import zipfile
 import pandas as pd
-import numpy as np
-import tensorflow as tf
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, roc_auc_score, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.optimizers import Adam
+from sklearn.metrics import accuracy_score, classification_report
 import matplotlib.pyplot as plt
+#Load DataSet
+dataset_path = "kdd99.csv"
+data = pd.read_csv(dataset_path)
+print(data.head())
 
-# Define dataset and download
-dataset_name = "andersy005/cicids-2017"
-os.system(f"kaggle datasets download -d {dataset_name}")
+#PreProcess
+label_encoder = LabelEncoder()
 
-# Extract dataset files
-with zipfile.ZipFile("cicids-2017.zip", 'r') as zip_ref:
-    zip_ref.extractall("cicids_2017_dataset")
+data['protocol_type'] = label_encoder.fit_transform(data['protocol_type'])
+data['service'] = label_encoder.fit_transform(data['service'])
+data['flag'] = label_encoder.fit_transform(data['flag'])
+data['label'] = label_encoder.fit_transform(data['label'])
 
-# Load dataset
-df = pd.read_csv("cicids_2017_dataset/some_file.csv")
+X = data.drop(columns=['label'])
+y = data['label']
 
-# Combine files into a single DataFrame
-all_data = pd.concat([pd.read_csv(file) for file in file_paths], ignore_index=True)
-all_data = all_data.drop(columns=['irrelevant_column_1', 'irrelevant_column_2'], errors='ignore')
-
-# Normalize data
 scaler = StandardScaler()
-features = scaler.fit_transform(all_data.drop(columns=['Label']))
-labels = all_data['Label']
+X_scaled = scaler.fit_transform(X)
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+print(f"Shape of training data: {X_train.shape}")
+print(f"Shape of test data: {X_test.shape}")
 
-# Define LSTM model
-model = Sequential([
-    LSTM(128, input_shape=(100, features.shape[1]), return_sequences=True),
-    Dropout(0.2),
-    LSTM(64),
-    Dropout(0.2),
-    Dense(1, activation='sigmoid')
-])
+#RSNN
+model = Sequential()
 
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-model.summary()
+#Add LSTM
+model.add(LSTM(units=64, return_sequences=True, input_shape=(X_train.shape[1], 1)))
+model.add(Dropout(0.3))
+model.add(LSTM(units=32, return_sequences=False))
+model.add(Dropout(0.3))
+model.add(Dense(1, activation='sigmoid'))
 
-# Create sequences
-def create_sequences(data, labels, seq_length=100):
-    return (np.array([data[i:i + seq_length] for i in range(len(data) - seq_length)]), 
-                     np.array(labels[seq_length:]))
+#Compile
+model.compile(optimizer=Adam(), loss='binary_crossentropy', metrics=['accuracy'])
 
-X, y = create_sequences(features, labels)
+#Learn
+X_train_rnn = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
+X_test_rnn = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
 
-# Split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+model.fit(X_train_rnn, y_train, epochs=10, batch_size=32, validation_data=(X_test_rnn, y_test))
 
-# Train model
-history = model.fit(X_train, y_train, epochs=10, batch_size=32, validation_split=0.2)
+#Model
+y_pred = model.predict(X_test_rnn)
+y_pred = (y_pred > 0.5).astype(int)
 
-# Evaluate model
-y_pred = model.predict(X_test) > 0.5
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy on test data: {accuracy:.4f}")
+
+print("\nClassification report:")
 print(classification_report(y_test, y_pred))
-print("ROC-AUC Score:", roc_auc_score(y_test, y_pred))
 
-# Identify misclassifications
-df_errors = pd.DataFrame({
-    "Actual Label": y_test,
-    "Predicted Label": y_pred.flatten()
-})
 
-# Confusion matrix
-cm = confusion_matrix(y_test, y_pred)
-ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Benign", "Attack"]).plot()
-
-# Feature scatter plot
+plt.figure(figsize=(10, 6))
 plt.scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap="coolwarm", alpha=0.6, label="Actual")
 plt.scatter(X_test[:, 0], X_test[:, 1], c=y_pred.flatten(), cmap="viridis", alpha=0.3, label="Predicted")
+
+plt.title("Actual vs Predicted (Scatter Plot)")
+plt.xlabel("Feature 1")
+plt.ylabel("Feature 2")
 plt.legend()
 plt.show()
-
